@@ -33,17 +33,34 @@ Official Pydantic documentation (with lots of examples):
 from datetime import date
 from email.policy import default
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
 from typing import Annotated
 
 
 
+def name_not_blank(value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError("name must not be blank")
+        return name
 
+Name = Annotated[str, Field(min_length=1, max_length=50) , AfterValidator(name_not_blank)]
+
+def watered_date_not_in_future(watered_date: date | None):
+    if watered_date is None:
+        return None
+    if watered_date > date.today():
+        raise ValueError("last_watered cannot be in the future")
+    return watered_date
+
+Date = Annotated[date | None , Field(default= None), AfterValidator(watered_date_not_in_future)]
 
 # ---------------------------------------------------------------------------
 # PlantCreate: the data a client sends when it adds a new plant.
 # ---------------------------------------------------------------------------
 class PlantCreate(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
     # EXAMPLE (already done): the first two fields.
     #   name     a required str of 1 to 50 characters; Field(...) adds rules
     #   species  an optional str: it may be None, and is None when not sent
@@ -51,11 +68,11 @@ class PlantCreate(BaseModel):
     #         https://docs.pydantic.dev/latest/concepts/fields/#string-constraints
 
     #= Field(min_length=1, max_length=50)
-    name: str = Field(min_length=1, max_length=50)
+    name: Name #str = Field(min_length=1, max_length=50)
     species: str | None = None
     indoor: bool = True
     water_every_days: int = Field(gt = 0, le = 60, default =7)
-    last_watered: date | None = None
+    last_watered: Date #date | None = None
     tags: list = []
 
     # Exercise 1: More fields, types and rules
@@ -88,14 +105,21 @@ class PlantCreate(BaseModel):
     #
     #   Write each one as a method inside this class, like this:
     #
-    @field_validator('name')
-    @classmethod
-    def name_not_blank(cls:PlantCreate, value: str) -> str:
-            name = value.strip()
-            if not name:
-                raise ValueError("name must not be blank")
-            return name
+    # @field_validator('name')
+    # @classmethod
+    # def name_not_blank(cls:PlantCreate, value: str) -> str:
+    #         name = value.strip()
+    #         if not name:
+    #             raise ValueError("name must not be blank")
+    #         return name
 
+    # @field_validator('last_watered')
+    # @classmethod
+    # def watered_date_not_in_future(cls:PlantCreate, date: date | None):
+    #     if date > date.today():
+    #         raise ValueError("last_watered cannot be in the future")
+    #     return date
+    
     #
     #   Docs: https://docs.pydantic.dev/latest/concepts/validators/#field-validators
     #         https://docs.python.org/3/library/datetime.html#datetime.date.today
@@ -140,4 +164,30 @@ class Plant(PlantCreate):
 #         https://docs.pydantic.dev/latest/concepts/serialization/#modelmodel_dump
 # ---------------------------------------------------------------------------
 class PlantUpdate(BaseModel):
-    pass
+    model_config = ConfigDict(extra="forbid")
+    name: Name | None = None #str | None = Field(min_length=1, max_length=50, default=None)
+    species: str | None = None
+    indoor: bool | None = None
+    water_every_days: int | None = Field(gt = 0, le = 60, default =None)
+    last_watered: Date | None = None #date | None = None
+    tags: list | None = None
+
+    # @field_validator('name')
+    # @classmethod
+    # def name_not_blank(cls:PlantCreate, value: str | None) -> str:
+    #     if value is None:
+    #         return None
+    #     name = value.strip()
+    #     if not name:
+    #         raise ValueError("name must not be blank")
+    #     return name
+
+    # @field_validator('last_watered')
+    # @classmethod
+    # def watered_date_not_in_future(cls:PlantCreate, date: date | None):
+    #     if date is None:
+    #         return None
+    #     if date > date.today():
+    #         raise ValueError("last_watered cannot be in the future")
+    #     return date
+   
